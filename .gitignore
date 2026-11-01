@@ -14,3 +14,6 @@
 # Python 缓存（tools/ 下的脚本互相 import 时生成，比如 verify_exe -> extract_icon）
 __pycache__/
 *.pyc
+
+# 上游 Web Lite 构建产物
+.web-lite-build/
