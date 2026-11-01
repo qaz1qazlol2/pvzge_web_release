@@ -26,6 +26,7 @@ Lostcity/Pirate）。Egypt / Sky / Modern 没有源，按 ZBT 的做法由通用
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -101,9 +102,29 @@ def main(apply=False):
         if f"t[t.{n}=" in js:
             raise SystemExit(f"枚举已存在，中止: {n}")
 
-    ENUM_ANCHOR = 't[t.VIC_Tutorial=483]="VIC_Tutorial",t[t.MusicAmount=484]="MusicAmount"'
+    # 基数从现有 MusicAmount 动态读 —— 三个分支条数不同
+    # （master / ZBTOnly 334，FullCustom 484），写死会错位。
+    m_amt = None
+    for m_amt in [re.search(r"t\[t\.MusicAmount=(\d+)\]", js)]:
+        pass
+    if not m_amt:
+        raise SystemExit("找不到 MusicAmount，中止")
+    base = int(m_amt.group(1))
+
+    # 末项枚举 = 紧挨着 MusicAmount 的那一项
+    m_last = re.search(r't\[t\.(\w+)=(\d+)\]="\1",t\[t\.MusicAmount=\d+\]', js)
+    if not m_last:
+        raise SystemExit("找不到 MusicAmount 前的末项枚举，中止")
+    last_name, last_val = m_last.group(1), int(m_last.group(2))
+    if last_val != base - 1:
+        raise SystemExit(f"末项 {last_name}={last_val} 与 MusicAmount={base} 不连续，中止")
+
+    ENUM_ANCHOR = (f't[t.{last_name}={last_val}]="{last_name}",'
+                   f't[t.MusicAmount={base}]="MusicAmount"')
     if js.count(ENUM_ANCHOR) != 1:
         raise SystemExit("枚举锚点不唯一，中止")
+    print(f"基数: {base} 条（末项 {last_name}={last_val}）")
+    print()
 
     UB_ANCHOR = ('if(a!=v.Victory||window.__mts!="MiniGame_A"){t.next=20;break}'
                  'u=A.UB_Victory,g=!1,s=1,t.next=270;break')
@@ -188,19 +209,15 @@ def main(apply=False):
     # ---------- 4) 枚举 ----------
     print()
     print("=== 4/5 枚举 ===")
-    base = 484
     parts = []
     for idx, (name, *_rest) in enumerate(tracks):
         v = base + idx
         parts.append('t[t.%s=%d]="%s"' % (name, v, name))
     new_amt = base + len(tracks)
-    new_enum = ('t[t.VIC_Tutorial=483]="VIC_Tutorial",' + ",".join(parts)
-                + ',t[t.MusicAmount=%d]="MusicAmount"' % new_amt)
-    js = js.replace(ENUM_ANCHOR + ',t[t.MusicAmount=484]="MusicAmount"'
-                    if False else ENUM_ANCHOR,
-                    't[t.VIC_Tutorial=483]="VIC_Tutorial",' + ",".join(parts)
-                    + ',t[t.MusicAmount=%d]="MusicAmount"' % new_amt, 1)
-    print(f"  追加 {len(tracks)} 项，MusicAmount 484 -> {new_amt}")
+    head = f't[t.{last_name}={last_val}]="{last_name}"'
+    tail = ',t[t.MusicAmount=%d]="MusicAmount"' % new_amt
+    js = js.replace(ENUM_ANCHOR, head + "," + ",".join(parts) + tail, 1)
+    print(f"  追加 {len(tracks)} 项，MusicAmount {base} -> {new_amt}")
 
     # ---------- 5) 接线 ----------
     print()

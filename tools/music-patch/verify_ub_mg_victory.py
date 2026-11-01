@@ -57,9 +57,10 @@ print(f"  其中能在枚举里找到的: {sum(1 for v in music_enum.values() if
 ck(amount == len(arr), f"MusicAmount({amount}) == Musics 条数({len(arr)})")
 
 # 反向：Musics 里每个条目，枚举值必须等于它的下标
-# ⚠️ 基线里本来就有 106 条没有枚举的音轨（PIANO_* / P1_Start_* 等），
+# ⚠️ 基线里本来就有一些没有枚举的音轨（PIANO_* / P1_Start_* 等），
 #    那是上游遗留，不属于本次改动范围。这里只断言：本次没有**新增**缺枚举项。
-BASE_COUNT = 484
+#    基数按「总数 - 20」动态算 —— 三个分支条数不同（334 / 484）。
+BASE_COUNT = len(arr) - 20
 mismatch_all = [(idx, e["name"], enum.get(e["name"]))
                 for idx, e in enumerate(arr) if enum.get(e["name"]) != idx]
 mismatch_new = [m for m in mismatch_all if m[0] >= BASE_COUNT]
